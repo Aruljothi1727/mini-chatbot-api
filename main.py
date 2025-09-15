@@ -1,43 +1,58 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-import google.generativeai as genai
-import os
-from dotenv import load_dotenv
+from pydantic import BaseModel
+from services.doc_service import process_document
+from services.qa_service import answer_query
+from services.vector_service import add_to_vectorstore
 
-# Load API key from .env
-load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-genai.configure(api_key=GEMINI_API_KEY)
 
 app = FastAPI()
 
-# Allow requests from frontend
-origins = os.getenv("ALLOWED_ORIGINS", "").split(",")  
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.get("/chat")
-async def chat(query: str):
+
+# --- Upload Endpoint ---
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
     try:
-        model = genai.GenerativeModel("gemini-2.5-flash")
-        chat_session = model.start_chat(history=[
-            {"role": "user", "parts": [
-                "You are NeuraChat, an AI assistant that responds only in plain text. "
-                "Do NOT generate images, videos, or files."
-            ]}
-        ])
+        file_bytes = await file.read()
 
-        # Send user message
-        response = chat_session.send_message(query)
+        # Process & vectorize
+        chunks =  process_document(file_bytes, file.filename)
+        add_to_vectorstore(chunks)
 
-        return {"response": response.text}
+        return {
+            "status": "success",
+            "message": f'Document "{file.filename}" uploaded and processed successfully.',
+            "details": {
+                "filename": file.filename, 
+                "status": "Ready for questions",
+                "chunks_created": len(chunks)
+            },
+        }
+    # except ValueError as e:
+    #     return {"error": str(e)}
     except Exception as e:
-        return {"response": f"⚠️ Error: {str(e)}"}
+        return {"error": f"Unexpected error: {str(e)}"}
 
 
+# --- Query Endpoint ---
+class QueryRequest(BaseModel):
+    question: str
+    k: int = 7
+
+@app.post("/query")
+async def query_docs(request: QueryRequest):
+    try:
+        result = await answer_query(request.question, request.k)  # async
+        return result
+    except Exception as e:
+        return {"error": f"Query error: {str(e)}"}
 
