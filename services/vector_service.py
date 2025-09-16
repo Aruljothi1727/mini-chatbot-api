@@ -3,15 +3,15 @@ import os
 import re
 from dotenv import load_dotenv
 from typing import List, Dict, Any
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_openai import OpenAIEmbeddings
 
 load_dotenv()
 
 class EnhancedVectorService:
     def __init__(self):
         # Initialize HuggingFace embedding model
-        self.embedding_model = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-mpnet-base-v2"
+        self.embedding_model = OpenAIEmbeddings(
+            model="text-embedding-3-small"  
         )
 
         # PostgreSQL connection
