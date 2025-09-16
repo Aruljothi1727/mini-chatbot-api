@@ -1,3 +1,17 @@
-.env
+# Python cache
 __pycache__/
+
+# Environment variables
+.env
+
+# Logs
+*.log
+
+# Old or backup files
+old_main.py
+
+# Services folder (you don't want to push)
+services/
+
+# Virtual environment
 venv/
