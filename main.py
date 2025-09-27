@@ -33,31 +33,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# class EmptyRetriever(BaseRetriever):
-#     def get_relevant_documents(self, query: str):
-#         return []
-
-#     async def aget_relevant_documents(self, query: str):
-#         return []
 
 # Global dictionary to store session memories
 memory_sessions = {}
 
-# ------------------- Memory Store -------------------
-# This keeps conversation memory per session in RAM
-memory_store = {}
-
 def get_memory_for_session_chain(session_id: str, k: int = 20):
     """Create or get sliding window memory for a session."""
-    # if session_id not in memory_store:
-    #     memory_store[session_id] = ConversationBufferWindowMemory(
-    #         memory_key="history",
-    #         input_key="input",
-    #         output_key="output",
-    #         k=k,                     # keep only last k Q/A
-    #         return_messages=False    # return history as string
-    #     )
-    # return memory_store[session_id]
     if session_id not in memory_sessions:
         memory_sessions[session_id] = ConversationBufferWindowMemory(
              memory_key="history",
@@ -67,8 +48,7 @@ def get_memory_for_session_chain(session_id: str, k: int = 20):
             return_messages=False    # return history as string
         )
     memory = memory_sessions[session_id]
-    # my_retriever = EmptyRetriever()
-   
+  
     chain = ConversationalRetrievalChain.from_llm(
        llm=llm,
     retriever=my_retriever,
@@ -146,7 +126,7 @@ class QASystem:
         # Step 1: Get conversation memory
         memory,chain = get_memory_for_session_chain(sessionId)
         history = memory.load_memory_variables({}).get("history", "")
-        print(f"\n[DEBUG] Loaded history for session {sessionId}:\n{history}\n")
+        # print(f"\n[DEBUG] Loaded history for session {sessionId}:\n{history}\n")
 
         # Step 2: Search top chunks
         retrieved_chunks_with_scores = vector_service.vector_store.similarity_search_with_score(normalized_question, k=k)
@@ -197,9 +177,9 @@ class QASystem:
 
         user_prompt = f"Question: {normalized_question}\n\nContext:\n{context_text}"
 
-        print(f"\n[DEBUG] Sending to LLM (session={sessionId}):")
-        print(f"System Prompt:\n{system_prompt}\n")
-        print(f"User Prompt (first 1000 chars):\n{user_prompt[:1000]}...\n")
+        # print(f"\n[DEBUG] Sending to LLM (session={sessionId}):")
+        # print(f"System Prompt:\n{system_prompt}\n")
+        # print(f"User Prompt (first 1000 chars):\n{user_prompt[:1000]}...\n")
  
 
         messages = [
@@ -255,6 +235,6 @@ async def query_docs(request: Request, body: QueryRequest):
     session_id = request.headers.get("session-id")
     if not session_id or not valid_format(session_id):
         session_id = generate_session_id()
-        print("New session id generated:", session_id)
+        # print("New session id generated:", session_id)
 
     return await qa_system.answer_query(body.question, body.k, session_id)
